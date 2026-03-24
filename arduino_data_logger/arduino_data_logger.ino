@@ -5,7 +5,6 @@
 #include <Wire.h>
 
 #define LOG_OPTION 1 //imprime o log no Serial Monitor de cada loop
-#define SERIAL_OPTION 0
 
 //Mapeamento EEPROM
 #define ADDR_ANIMACAO 0 // endereço da preferência de animação
@@ -87,16 +86,6 @@ void loop()
 
   // Verifica se algum sensor mudou e grava na EEPROM se necessário
   verificaEGrava(ajustado);
-
-  // Imprime data e hora no Serial Monitor se SERIAL_OPTION == 1
-  if (SERIAL_OPTION) {
-    Serial.print(ajustado.day());   Serial.print("/");
-    Serial.print(ajustado.month()); Serial.print("/");
-    Serial.print(ajustado.year());  Serial.print(" ");
-    Serial.print(ajustado.hour());  Serial.print(":");
-    Serial.print(ajustado.minute());Serial.print(":");
-    Serial.println(ajustado.second());
-  }
 
 //  telaDados();
 //  if (tela == 1)
