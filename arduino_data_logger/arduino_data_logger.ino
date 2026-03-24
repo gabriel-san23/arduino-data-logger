@@ -58,7 +58,15 @@ void setup()
   Serial.begin(9600);
   RTC.begin(); // inicia o módulo RTC
   
-  RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  //RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  /*
+   Because the compiler time is fixed, 
+   if you keep this line in your setup() function, 
+   your RTC will reset to the compilation time 
+   every time the Arduino restarts.
+
+   Run the code once to set the time and comment out the line 
+  */
 
 // Carrega da EEPROM as preferências salvas
   carregarConfiguracoes();
