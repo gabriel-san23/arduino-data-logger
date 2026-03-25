@@ -14,6 +14,7 @@
 #define LOG_REGISTROS 50 // quantidade máxima de registros
 #define LOG_BYTES 10  // tamanho de cada registros em bytes
 #define LOG_OPTION 1 // permite imprimir o log no Serial Monitor
+const long intervalo = 2000; // Verifica sensores a cada 2 segundos
 
 // Configuração dos Pinos
 const int botao_ok = 3;
@@ -30,6 +31,7 @@ bool modoFahrenheit = false;
 bool animacaoInicial = false;
 int tela = 0;
 
+unsigned long anteriorMillis = 0;
 float ultimaTemp = 0;
 float ultimaUmid = 0;
 int   ultimaLuz  = 0;
@@ -79,15 +81,22 @@ void setup()
  
 void loop()
 { 
-  // Obtém o horário atual do RTC e aplica o fuso horário
-  DateTime now = RTC.now();
-  DateTime horaAjustada = DateTime(now.unixtime() + (long)utc_offset * 3600); // UTC_OFFSET × 3600 segundos para ajustar ao fuso local.
+  unsigned long atualMillis = millis();
 
-  // Se LOG_OPTION == 1, imprime o conteúdo completo da EEPROM
-  if (LOG_OPTION) get_log();
+  if (atualMillis - anteriorMillis >= intervalo) {
+    anteriorMillis = atualMillis;
 
-  // Verifica se algum sensor mudou e grava na EEPROM se necessário
-  verificaEGrava(horaAjustada);
+    // Obtém o horário atual do RTC e aplica o fuso horário
+    DateTime now = RTC.now();
+    DateTime horaAjustada = DateTime(now.unixtime() + (long)utc_offset * 3600); 
+    // UTC_OFFSET × 3600 segundos para ajustar ao fuso local.
+
+    // Verifica se algum sensor mudou e grava na EEPROM se necessário
+    verificaEGrava(horaAjustada);
+
+    // Se LOG_OPTION == 1, imprime o conteúdo completo da EEPROM
+    if (LOG_OPTION) get_log();
+  }
 
   if (tela == 0) {
     telaDados(); 
