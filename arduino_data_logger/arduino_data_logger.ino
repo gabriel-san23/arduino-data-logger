@@ -1,26 +1,31 @@
+// Incluindo bibliotecas
 #include <LiquidCrystal_I2C.h>
 #include "DHT.h"
 #include <EEPROM.h>
 #include <RTClib.h>
 #include <Wire.h>
 
-#define LOG_OPTION 1 //imprime o log no Serial Monitor de cada loop
-
-//Mapeamento EEPROM
+// Mapeamento e Configurações
 #define ADDR_ANIMACAO 0 // endereço da preferência de animação
 #define ADDR_UNIDADE 1 // endereço da preferência de unidade
 #define ADDR_PONTEIRO 2 // endereço do ponteiro do log
 #define ADDR_LOG_INICIO 3 // primeiro byte da área de log
+
 #define LOG_REGISTROS 50 // quantidade máxima de registros
 #define LOG_BYTES 10  // tamanho de cada registros em bytes
+#define LOG_OPTION 1 // permite imprimir o log no Serial Monitor
 
-#define UTC_OFFSET 0
- 
-int botao_ok = 3;
-int botao_direita = 4;
-int botao_esquerda = 5;
-int botao_menu = 6;
+// Configuração dos Pinos
+const int botao_ok = 3;
+const int botao_direita = 4;
+const int botao_esquerda = 5;
+const int botao_menu = 6;
+#define DHTPIN 2 // Configuração do DHT
+#define DHTTYPE DHT22 // !! Mudar para DHT-11 no laboratório !!
+#define LDRPIN A3 // Configuração do LDR
 
+// Variáveis globais
+int utc_offset = 0; // diferença de fuso horário (Brasília:UTC-3)
 bool modoFahrenheit = false;
 bool animacaoInicial = false;
 int tela = 0;
@@ -28,20 +33,13 @@ int tela = 0;
 float ultimaTemp = 0;
 float ultimaUmid = 0;
 int   ultimaLuz  = 0;
-
 int currentAddress = ADDR_LOG_INICIO;
- 
+
+// Criando Instâncias
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RTC_DS1307 RTC;
- 
-// Configurações do DHT22 (lembre que no laboratório temos o DHT-11)
-#define DHTPIN 2
-#define DHTTYPE DHT11 // Mudar para DHT-11 no laboratório
 DHT dht(DHTPIN, DHTTYPE);
 
-// Configurações do LDR
-#define LDRPIN A3
- 
 void setup()
 {
   pinMode(LDRPIN, INPUT); 
@@ -79,7 +77,7 @@ void loop()
 { 
   // Obtém o horário atual do RTC e aplica o fuso horário
   DateTime now = RTC.now();
-  DateTime ajustado = DateTime(now.unixtime() + (long)UTC_OFFSET * 3600); // UTC_OFFSET × 3600 segundos para ajustar ao fuso local.
+  DateTime ajustado = DateTime(now.unixtime() + (long)utc_offset * 3600); // UTC_OFFSET × 3600 segundos para ajustar ao fuso local.
 
   // Se LOG_OPTION == 1, imprime o conteúdo completo da EEPROM
   if (LOG_OPTION) get_log();
