@@ -107,10 +107,10 @@ void loop()
   verificarBotoes();
 
   switch (tela) {
-    case 0: exibirTelaDados();     break;
-    case 1: exibirTelaEscolha();   break;
-    case 2: exibirTelaAnimacao();  break;
-    case 3: exibirTelaLog();       break;
+    case 0: telaDados();     break;
+    case 1: telaUnidadeTemp();   break;
+    case 2: telaAtivarAnimacao();  break;
+    case 3: telaLog();       break;
   }
 }
 
