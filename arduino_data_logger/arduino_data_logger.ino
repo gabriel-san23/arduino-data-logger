@@ -47,51 +47,47 @@ void setup()
   pinMode(botao_direita, INPUT);
   pinMode(botao_esquerda, INPUT);
   pinMode(botao_menu, INPUT);
-  pinMode(LED_BUILTIN, OUTPUT); // LED embutido teria que piscar ao gravar na EEPROM
+  pinMode(LED_BUILTIN, OUTPUT); // LED embutido pisca ao gravar na EEPROM
   
   Wire.begin(); // inicia o barramento I2C (necessário para LCD e RTC)
   lcd.begin(16, 2);
   dht.begin();
+  RTC.begin();
   Serial.begin(9600);
-  RTC.begin(); // inicia o módulo RTC
   
   //RTC.adjust(DateTime(F(__DATE__), F(__TIME__)));
   /*
-   Because the compiler time is fixed, 
-   if you keep this line in your setup() function, 
-   your RTC will reset to the compilation time 
-   every time the Arduino restarts.
+   O código acima define a hora do RTC para o 
+   horário do sistema em que você compilou o sketch.
 
-   Run the code once to set the time and comment out the line 
+   Como o tempo de compilação é fixo, 
+   se mantermos o comando na função setup(), 
+   o RTC voltará ao tempo de compilação 
+   sempre que o Arduino reinicia.
+
+   Rode este código apenas uma vez para definir o tempo e comente a linha. 
   */
 
-// Carrega da EEPROM as preferências salvas
+  // Carrega da EEPROM as preferências salvas
   carregarConfiguracoes();
 
-  if (animacaoInicial == true)
+  // Animação de abertura
+  if (animacaoInicial)
     startupScreen();
-  lcd.clear();  
+  lcd.clear();
 }
  
 void loop()
 { 
   // Obtém o horário atual do RTC e aplica o fuso horário
   DateTime now = RTC.now();
-  DateTime ajustado = DateTime(now.unixtime() + (long)utc_offset * 3600); // UTC_OFFSET × 3600 segundos para ajustar ao fuso local.
+  DateTime horaAjustada = DateTime(now.unixtime() + (long)utc_offset * 3600); // UTC_OFFSET × 3600 segundos para ajustar ao fuso local.
 
   // Se LOG_OPTION == 1, imprime o conteúdo completo da EEPROM
   if (LOG_OPTION) get_log();
 
   // Verifica se algum sensor mudou e grava na EEPROM se necessário
-  verificaEGrava(ajustado);
-
-//  telaDados();
-//  if (tela == 1)
-//    telaEscolha(); // Quando vai para a direita
-//  else if (tela == -1)
-//    telaAnimacao();
-//  else if (tela == -2)
-//    telaLog();
+  verificaEGrava(horaAjustada);
 
   if (tela == 0) {
     telaDados(); 
