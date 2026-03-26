@@ -1,4 +1,4 @@
-# arduino-data-logger
+# Arduino Data Logger with RTC & EEPROM
 
 ![Platform](https://img.shields.io/badge/platform-Arduino-blue)
 ![Language](https://img.shields.io/badge/language-C++-informational)
