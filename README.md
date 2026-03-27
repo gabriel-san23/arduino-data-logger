@@ -50,3 +50,13 @@
 - User navigation and configuration via buttons
 - Temperature unit switching (°C / °F)
 - Optional startup animation (can be disabled)
+
+---
+
+### 📖 Libraries Required
+
+ - https://github.com/johnrickman/LiquidCrystal_I2C
+ - https://github.com/adafruit/dht-sensor-library
+ - https://github.com/adafruit/RTClib
+ - https://github.com/adafruit/Adafruit_BusIO/tree/master
+ - https://github.com/adafruit/adafruit_sensor
