@@ -29,11 +29,19 @@ int utc_offset = 0; // diferença de fuso horário (Brasília:UTC-3)
 bool modoFahrenheit = false;
 bool animacaoInicial = false;
 int tela = 0;
+int subTela = 0;
 
 float ultimaTemp = 0;
 float ultimaUmid = 0;
 int   ultimaLuz  = 0;
 int currentAddress = ADDR_LOG_INICIO;
+
+// Configurações de intervalos (função millis)
+unsigned long anteriorMillis = 0;
+unsigned long lastDebounceTime = 0;
+
+const long intervalo = 2000; // Tenta gravar a cada 2 segundos
+const int debounceDelay = 250;
 
 // Criando Instâncias
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -73,36 +81,143 @@ void setup()
 
   // Animação de abertura
   if (animacaoInicial)
-    startupScreen();
+    startupScreenAnimation();
   lcd.clear();
 }
- 
+
 void loop()
-{ 
-  // Obtém o horário atual do RTC e aplica o fuso horário
-  DateTime now = RTC.now();
-  DateTime horaAjustada = DateTime(now.unixtime() + (long)utc_offset * 3600); // UTC_OFFSET × 3600 segundos para ajustar ao fuso local.
+{
+  unsigned long atualMillis = millis();
 
-  // Se LOG_OPTION == 1, imprime o conteúdo completo da EEPROM
-  if (LOG_OPTION) get_log();
+  if (atualMillis - anteriorMillis >= intervalo) {
+    anteriorMillis = atualMillis;
 
-  // Verifica se algum sensor mudou e grava na EEPROM se necessário
-  verificaEGrava(horaAjustada);
+    // Obtém o horário atual do RTC e aplica o fuso horário
+    DateTime now = RTC.now();
+    DateTime horaAjustada = DateTime(now.unixtime() + (long)utc_offset * 3600); 
+    // UTC_OFFSET × 3600 segundos para ajustar ao fuso local.
 
-  if (tela == 0) {
-    telaDados(); 
-  } 
-  else if (tela == 1) {
-    telaEscolha();
-    tela = 0; // Volta para tela principal ao sair
-  } 
-  else if (tela == -1) {
-    telaAnimacao();
+    // Verifica se algum sensor mudou e grava na EEPROM se necessário
+    verificaEGrava(horaAjustada);
+
+    // Se LOG_OPTION == 1, imprime o conteúdo completo da EEPROM
+    if (LOG_OPTION) get_log();
+  }
+
+  verificarBotoes();
+
+  switch (tela) {
+    case 0: telaDados();     break;
+    case 1: telaUnidadeTemp();   break;
+    case 2: telaAtivarAnimacao();  break;
+    case 3: telaLog();       break;
+  }
+}
+
+void telaDados() {
+
+  lcd.setCursor(0, 0);  
+  if (subTela == 0) {
+    float t = dht.readTemperature();
+    if (modoFahrenheit) t = (1.8 * t) + 32.0;
+    lcd.print("T: "); lcd.print(t);
+    lcd.print(modoFahrenheit ? " F  " : " C  ");
+  }
+  else if (subTela == 1) {
+    lcd.print("H: "); lcd.print(dht.readHumidity()); lcd.print(" %  ");
+  }
+  else {
+    lcd.print("*L: "); lcd.print(analogRead(LDRPIN)); lcd.print("    ");
+  }
+
+  if (digitalRead(botao_ok) == HIGH &&
+    (millis() - lastDebounceTime > debounceDelay)) {
+
+    subTela = (subTela + 1) % 3;
+    lcd.clear();
+    lastDebounceTime = millis();
+  }
+}
+
+void telaLog() {
+  // contabiliza quantos registros válidos possuem na EEPROM
+  int qtdRegistros = 0;
+  for (int i = 0; i < LOG_REGISTROS; i++){
+    long ts;
+    EEPROM.get(ADDR_LOG_INICIO + (i * LOG_BYTES), ts);
+    if (ts != 0 && ts != (long)0xFFFFFFFF) qtdRegistros++;
+  }
+
+  // exibir quantidade em relação ao total
+  lcd.setCursor(0,0);
+  lcd.print("Log: ");
+  lcd.print(qtdRegistros); lcd.print("/"); lcd.print(LOG_REGISTROS);
+
+  lcd.setCursor(0,1);
+  lcd.print("Serial: ok");
+}
+ 
+void telaAtivarAnimacao()
+{
+  lcd.setCursor(0,0);
+  lcd.print("Animacao inicial");
+  
+  lcd.setCursor(0,1);
+  if (animacaoInicial) lcd.print("< Ativada     >");
+  else lcd.print("< Desativada  >");
+
+  // alterar estado da animação
+  if (digitalRead(botao_ok) == HIGH &&
+    (millis() - lastDebounceTime > debounceDelay)) {
+
+    animacaoInicial = !animacaoInicial;
+    EEPROM.update(ADDR_ANIMACAO, animacaoInicial ? 1 : 0);
+    lastDebounceTime = millis();
+  }  
+}
+
+void telaUnidadeTemp()
+{
+  lcd.setCursor(0,0);
+  lcd.print("Unidade Temp:");  
+  lcd.setCursor(0,1);
+  lcd.print(modoFahrenheit ? "< Fahrenheit >" : "< Celsius    >");
+
+  // alterar unidade de temperatura
+  if (digitalRead(botao_ok) == HIGH && 
+    (millis() - lastDebounceTime > debounceDelay)) {
+
+    modoFahrenheit = !modoFahrenheit;    
+    EEPROM.update(ADDR_UNIDADE, modoFahrenheit ? 1 : 0);
+    lastDebounceTime = millis();
+  }
+}
+
+void verificarBotoes() {
+  // Sistema simples de debounce por tempo
+  if ((millis() - lastDebounceTime) < debounceDelay) return;
+
+  // BOTÃO DIREITA (Avança tela)
+  if (digitalRead(botao_direita) == HIGH) {
+    tela++;
+    if (tela > 3) tela = 0; // Cicla entre as telas
+    lcd.clear();
+    lastDebounceTime = millis();
+  }
+
+  // BOTÃO ESQUERDA (Volta tela)
+  if (digitalRead(botao_esquerda) == HIGH) {
+    tela--;
+    if (tela < 0) tela = 3; // Cicla entre as telas
+    lcd.clear();
+    lastDebounceTime = millis();
+  }
+
+  // BOTÃO MENU (Pode servir para resetar para a tela principal)
+  if (digitalRead(botao_menu) == HIGH) {
     tela = 0;
-  } 
-  else if (tela == -2) {
-    telaLog();
-    tela = 0;
+    lcd.clear();
+    lastDebounceTime = millis();
   }
 }
 
@@ -122,7 +237,7 @@ void carregarConfiguracoes(){
   currentAddress = ADDR_LOG_INICIO + (p * LOG_BYTES);
 }
 
-void verificaEGrava(DateTime ajustado) {
+void verificaEGrava(DateTime horarioAtual) {
   float novaTemp = dht.readTemperature();
   float novaUmid = dht.readHumidity();
   int   novaLuz  = analogRead(LDRPIN);
@@ -138,7 +253,7 @@ void verificaEGrava(DateTime ajustado) {
     int ti = (int)(novaTemp * 100);
     int ui = (int)(novaUmid * 100);
 
-    EEPROM.put(currentAddress, (long)ajustado.unixtime());
+    EEPROM.put(currentAddress, (long)horarioAtual.unixtime());
     EEPROM.put(currentAddress + 4, ti);
     EEPROM.put(currentAddress + 6, ui);
     EEPROM.put(currentAddress + 8, novaLuz);
@@ -182,34 +297,8 @@ void get_log(){
   Serial.println("=== FIM ===");
 }
 
-void telaLog() {
-  int total = 0;
-  for (int i = 0; i < LOG_REGISTROS; i++){
-    long ts;
-    EEPROM.get(ADDR_LOG_INICIO + (i * LOG_BYTES), ts);
-    if (ts != 0 && ts != (long)0xFFFFFFFF) total++;
-  }
-
-  lcd.clear();
-  lcd.setCursor(0,0); lcd.print("Log: ");
-  lcd.print(total);
-  lcd.print("/");
-  lcd.print(LOG_REGISTROS);
-  lcd.setCursor(0,1); lcd.print("Serial: ok");
-
-  get_log();
-
-  while (digitalRead(botao_ok)       == LOW &&
-         digitalRead(botao_menu)     == LOW &&
-         digitalRead(botao_direita)  == LOW &&
-         digitalRead(botao_esquerda) == LOW) {
-    delay(50);
-  }
-  delay(50);
-  tela = 0;
-}
-
-void startupScreen()
+// Animação da tela inicial
+void startupScreenAnimation()
 {
   wine1();
   delay(1000);  
@@ -219,120 +308,6 @@ void startupScreen()
   delay(1000);  
   wine4();
   delay(1000);
-}
-
-void telaDados() {
-  //tela = 0;
-  int subTela = 0;
-  bool sair = false;
-  lcd.clear();
-
-  while (!sair) {
-    lcd.setCursor(0, 0);
-    if (subTela == 0) {
-      float t = dht.readTemperature();
-      if (modoFahrenheit) t = (1.8 * t) + 32.0;
-      lcd.print("T: "); lcd.print(t);
-      lcd.print(modoFahrenheit ? " F  " : " C  ");
-    }
-    else if (subTela == 1) {
-      lcd.print("H: "); lcd.print(dht.readHumidity()); lcd.print(" %  ");
-    }
-    else {
-      lcd.print("*L: "); lcd.print(analogRead(LDRPIN)); lcd.print("    ");
-    }
-
-    if (digitalRead(botao_ok) == HIGH) {
-      subTela = (subTela + 1) % 3;
-      lcd.clear();
-      while (digitalRead(botao_ok) == HIGH) delay(10);
-      delay(50);
-    }
-    if (digitalRead(botao_menu) == HIGH) {
-      sair = true;
-      while (digitalRead(botao_menu) == HIGH) delay(10);
-      delay(50);
-    }
-    if (digitalRead(botao_direita) == HIGH) {
-      sair = true; tela++;
-      while (digitalRead(botao_direita) == HIGH) delay(10);
-      delay(50);
-    }
-    if (digitalRead(botao_esquerda) == HIGH) {
-      sair = true; tela--;
-      while (digitalRead(botao_esquerda) == HIGH) delay(10);
-      delay(50);
-    }
-    delay(100);
-  }
-}
- 
-void telaAnimacao()
-{
-  bool sair = false;
-  lcd.clear();
-  
-  while(!sair) {
-    lcd.setCursor(0,0);
-    lcd.print("Animacao inicial");
-    
-    lcd.setCursor(0,1);
-    if (animacaoInicial) lcd.print("< Ativada     >");
-    else lcd.print("< Desativada  >");
-
-    if (digitalRead(botao_esquerda) == HIGH || digitalRead(botao_direita) == HIGH) {
-      animacaoInicial = !animacaoInicial; 
-      
-      EEPROM.update(ADDR_ANIMACAO, animacaoInicial ? 1 : 0);
-      while(digitalRead(botao_esquerda) == HIGH || digitalRead(botao_direita) == HIGH) {
-        delay(10);
-      }
-      delay(50);
-    }
-
-    if (digitalRead(botao_ok) == HIGH || digitalRead(botao_menu) == HIGH) {
-      sair = true;
-      
-      while(digitalRead(botao_ok) == HIGH || digitalRead(botao_menu) == HIGH) {
-        delay(10);
-      }
-      delay(50);
-    }
-  }
-}
-
-void telaEscolha()
-{
-  bool sair = false;
-  lcd.clear();
-  
-  while(!sair) {
-    lcd.setCursor(0,0);
-    lcd.print("Unidade Temp:");
-    
-    lcd.setCursor(0,1);
-    if (modoFahrenheit) lcd.print("< Fahrenheit >  ");
-    else lcd.print("< Celsius    >  ");
-
-    if (digitalRead(botao_esquerda) == HIGH || digitalRead(botao_direita) == HIGH) {
-      modoFahrenheit = !modoFahrenheit; 
-      
-      EEPROM.update(ADDR_UNIDADE, modoFahrenheit ? 1 : 0);
-      while(digitalRead(botao_esquerda) == HIGH || digitalRead(botao_direita) == HIGH) {
-        delay(10);
-      }
-      delay(50);
-    }
-
-    if (digitalRead(botao_ok) == HIGH || digitalRead(botao_menu) == HIGH) {
-      sair = true;
-      
-      while(digitalRead(botao_ok) == HIGH || digitalRead(botao_menu) == HIGH) {
-        delay(10);
-      }
-      delay(50);
-    }
-  }
 }
 
 void wine1() {
