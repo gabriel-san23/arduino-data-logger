@@ -7,6 +7,9 @@
 ![RTC](https://img.shields.io/badge/RTC-module-blueviolet)
 ![Storage](https://img.shields.io/badge/storage-EEPROM-lightgrey)
 
+For more informations about the use:
+[Check the User Guide here (PT-BR)](Manual%20de%20Uso.pdf)
+
 ## 🧩 Technical Specifications
 
 ### 🔧 Hardware
